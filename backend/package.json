@@ -1,0 +1,25 @@
+{
+  "name": "qh-visionx-response-api",
+  "version": "1.0.0",
+  "description": "QH VisionX Response API - Emergency response and field coordination backend",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "argon2": "^0.41.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "redis": "^4.7.0",
+    "ws": "^8.18.0"
+  }
+}
