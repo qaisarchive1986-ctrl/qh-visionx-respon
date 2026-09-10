@@ -1,0 +1,131 @@
+services:
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: qh-visionx-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/sql/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - qh-network
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: qh-visionx-redis
+    restart: unless-stopped
+
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD}"
+      ]
+
+    volumes:
+      - redisdata:/data
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "${REDIS_PASSWORD}",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - qh-network
+
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: qh-visionx-api
+    restart: unless-stopped
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    expose:
+      - "3000"
+
+    networks:
+      - qh-network
+
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: qh-visionx-nginx
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+
+    depends_on:
+      - api
+
+    networks:
+      - qh-network
+
+
+volumes:
+
+  pgdata:
+    name: qh-visionx-pgdata
+
+  redisdata:
+    name: qh-visionx-redisdata
+
+
+networks:
+
+  qh-network:
+    name: qh-visionx-network
+    driver: bridge
